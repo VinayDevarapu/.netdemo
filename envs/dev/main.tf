@@ -21,13 +21,6 @@ module "secret_manager" {
   secret_value = var.secret_value
 }
 
-module "vpc_connector" {
-  source         = "../../modules/vpc_connector"
-  connector_name = var.connector_name
-  region         = var.region
-  network        = module.vpc.network_name
-  ip_cidr_range  = var.connector_range
-}
 
 module "cloud_run_service" {
   source                  = "../../modules/cloudrun"
