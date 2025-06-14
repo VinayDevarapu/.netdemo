@@ -28,7 +28,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${REPOSITORY}/${IMAGE_NAME}:latest ./sample-app
+          docker build -t ${REGION}-docker.pkg.dev${{ secrets.GCP_PROJECT }}/${REPOSITORY}/${IMAGE_NAME}:latest ./sample-app
 
       - name: Push Docker image to Artifact Registry
         run: |
