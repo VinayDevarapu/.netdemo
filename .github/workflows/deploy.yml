@@ -1,58 +1,43 @@
-name: Build and Deploy to Cloud Run
+name: Deploy Infrastructure via Terraform
 
 on:
   push:
     branches: [main]
 
-env:
-  REGION: us-central1
-  REPOSITORY: dotnet-repo
-  IMAGE_NAME: your-app
-
 jobs:
-  build-and-deploy:
+  terraform-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout Repo
+      uses: actions/checkout@v3
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-        with:
-          project_id: ${{ secrets.GCP_PROJECT }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+    - name: Authenticate with Google Cloud
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Configure Docker to use Artifact Registry
-        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
 
-      - name: Build Docker image
-        run: |
-            docker build -t ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${REPOSITORY}/${IMAGE_NAME}:latest ./sample-app
+    - name: Terraform Init and Apply (Dev)
+      working-directory: ./envs/dev
+      run: |
+        terraform init -backend-config="bucket=my-terraform-states" \
+                       -backend-config="prefix=cloudrun-infra/dev"
+        terraform apply -var-file="dev.tfvars" -auto-approve
 
+    - name: Terraform Init and Apply (Test)
+      working-directory: ./envs/test
+      run: |
+        terraform init -backend-config="bucket=my-terraform-states" \
+                       -backend-config="prefix=cloudrun-infra/test"
+        terraform apply -var-file="test.tfvars" -auto-approve
 
-      - name: Push Docker image to Artifact Registry
-        run: |
-          docker push ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${REPOSITORY}/${IMAGE_NAME}:latest
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      # Run terraform for each environment sequentially
-      - name: Terraform Init and Apply (Dev)
-        working-directory: ./envs/dev
-        run: |
-          terraform init -backend-config="bucket=my-terraform-states" -backend-config="prefix=cloudrun-infra/dev"
-          terraform apply -var-file=dev.tfvars -auto-approve
-
-      - name: Terraform Init and Apply (Test)
-        working-directory: ./envs/test
-        run: |
-          terraform init -backend-config="bucket=my-terraform-states" -backend-config="prefix=cloudrun-infra/test"
-          terraform apply -var-file=test.tfvars -auto-approve
-
-      - name: Terraform Init and Apply (Prod)
-        working-directory: ./envs/prod
-        run: |
-          terraform init -backend-config="bucket=my-terraform-states" -backend-config="prefix=cloudrun-infra/prod"
-          terraform apply -var-file=prod.tfvars -auto-approve
+    - name: Terraform Init and Apply (Prod)
+      working-directory: ./envs/prod
+      run: |
+        terraform init -backend-config="bucket=my-terraform-states" \
+                       -backend-config="prefix=cloudrun-infra/prod"
+        terraform apply -var-file="prod.tfvars" -auto-approve
